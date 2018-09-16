@@ -1,0 +1,200 @@
+######################################################
+
+# Week 05 - Standardization, categorical variables
+######################################################
+
+#################
+# DISTIRBUTIONS
+#################
+
+
+z.score.Eleanor <- (680-515)/114; z.score.Eleanor
+
+# NORMAL DISTRIBUTION (if mean = 0, sd=1, then standard Normal distribution)
+dnorm(x, mean = 0, sd = 1, log = FALSE) # gives the probability density function (height) for a certain value
+pnorm(q, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE) # gives the area under the Normal curve to the left of q; finding a probability
+qnorm(p, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE) # gives the value (q) at which the probability p lies to the left
+rnorm(n, mean = 0, sd = 1) # generates random numbers from a normal distribution with specific mean and standard deviation
+
+# Examples using the Normal distribution
+
+# The distribution of SAT math scores has a mean of 515 and a standard deviation of 114.
+# Eleanor scores 680. What percentage of people scored below her?
+pnorm(z.score.Eleanor, mean = 0, sd = 1) # this is using Eleanor's z-score = 1.447368 and the standard Normal distribution
+pnorm(680, mean = 515, sd = 114)
+
+
+# What minimum score is necessary to be in the top 10%?
+# Top 10% means 90% of people score below you.
+qnorm(0.90, mean = 515, sd = 114) # Since you can only score integer values, you need to round up the answer.
+qnorm(0.10, mean = 515, sd = 114, lower.tail = FALSE)
+
+
+# t-DISTRIBUTION
+dt(x, df, ncp, log = FALSE)
+pt(q, df, ncp, lower.tail = TRUE, log.p = FALSE)
+qt(p, df, ncp, lower.tail = TRUE, log.p = FALSE)
+rt(n, df, ncp)
+
+# How have we used the t-distribution in the past?
+# What is the critical value for df = 48 and alpha = 0.05 (two-sided)?
+qt(0.975, 48) # give a probability 0.975, and the degrees of freedom
+
+# What do you get for the standard Normal distribution?
+qnorm(0.975, mean = 0, sd = 1)
+# Why is the value higher for the t-distribution?
+# because normal is more skinny.
+# What is the p-value for a t-statistic of -9.2, using df = 48 (two-sided)?
+pt(-9.2, 48) # this is the probability to the left; this would be the p-value for a one-sided test
+2 * pt(-9.2, 48) # p-value for a two-sided test
+
+# What if the test statistic is positive?
+1-pt(9.2, 48) # this gives the area to the right of the positive test statistic; this would be the p-value for a one-sided test
+2 *(1-pt(9.2, 48)) # p-value for a two-sided test
+
+# Note that we have only used two-sided alternative hypotheses in BABS 507 and 508.
+
+# F DISTRIBUTION
+df(x, df1, df2, ncp, log = FALSE)
+pf(q, df1, df2, ncp, lower.tail = TRUE, log.p = FALSE)
+qf(p, df1, df2, ncp, lower.tail = TRUE, log.p = FALSE)
+rf(n, df1, df2, ncp)
+
+# How have we used the F-distribution in the past?
+# What is the F critical for df num = 4, df denom = 100, alpha = 0.05?
+qf(0.95, 4, 100)
+
+# What is the p-value for an F-statistic of 4.5, for df num = 4, df denom = 100?
+1-pf(4.5, 4, 100)
+pf(4.5, 4, 100, lower.tail = FALSE) # These two ways are equivalent
+
+# CHI-SQUARED DISTRIBUTION
+dchisq(x, df, ncp = 0, log = FALSE)
+pchisq(q, df, ncp = 0, lower.tail = TRUE, log.p = FALSE)
+qchisq(p, df, ncp = 0, lower.tail = TRUE, log.p = FALSE)
+rchisq(n, df, ncp = 0)
+
+# How have we used the chi-squared distribution in the past?
+# What is the chi-squared critical for df = 4, alpha = 0.05?
+qchisq(0.95, 4)
+qchisq(0.05, 4, lower.tail = FALSE)
+
+# What is the p-value for a chi-squared statistic of 7.8, df=4?
+1 - pchisq(7.8, 4)
+pchisq(7.8, 4, lower.tail = FALSE)
+
+# POISSON DISTRIBUTION
+dpois(x, lambda, log = FALSE)
+ppois(q, lambda, lower.tail = TRUE, log.p = FALSE)
+qpois(p, lambda, lower.tail = TRUE, log.p = FALSE)
+rpois(n, lambda)
+
+# How have we used the chi-squared distribution in the past?
+# We have created data that follows a Poisson distribution given a value for the mean (and variance) = lambda
+rpois(100, 5) # simulated Poisson data with 100 observations and a mean = 5
+
+
+#################
+# SCALING
+#################
+
+# If you have the data for a variable, you can use the function scale() to calculate the mean and SD, then standardize all the values.
+# Let's create some data:
+data.vector <- rnorm(100, mean=100, sd=15); data.vector
+mean(data.vector)
+sd(data.vector)
+
+scale(data.vector) # now you have z-scores for each of the values.
+
+library(forecast) # We are going to use the Box-Cox transformation, which is available in the forecast package but is not exclusively used in forecasting
+
+mydata <- read.csv(file.choose(), header=TRUE)
+str(mydata)
+
+hist(mydata$sale.price) # Note that this is quite skewed
+hist(log(mydata$sale.price)) # Log transformations can helpd with skew
+
+lambda <- BoxCox.lambda(mydata$sale.price)
+hist(BoxCox(mydata$sale.price,lambda)) # This is looking better
+
+# If we want to scale data, then it should be unimodal and roughly symmetric
+scale(BoxCox(mydata$sale.price,lambda))
+
+
+##############################
+# CATEGORICAL DATA - BINARY
+##############################
+
+# ONE VARIABLE
+# What number of houses have air conditionning?
+table(mydata$air.conditionning) 
+
+# What proportion of houses have air conditionning?
+table(mydata$air.conditionning)/nrow(mydata)
+
+# How can we do a one proportion z-test
+binom.test(x, n, p = 0.5, alternative = "two.sided") # This is an exact test that is good when sample size < 30.
+prop.test(x, n, p = NULL, alternative = "two.sided") # This test uses a Normal approximation of a binomial and is suitable when sample sizes > 30. np >= 10; nq >=10
+
+# Is the proportion of houses with air conditionning significantly different from 0.5?
+prop.test(433, 521, p = 0.5, alternative = "two.sided")
+# Note that this uses a chi-squared test statistic. If you square the standard Normal distribution, then you get the simplest form of the chi-squared distribution
+
+# TWO VARIABLES
+# You find that 70 % of the men are voting for Candidate A, while 74 % of the women are voting for Candidate A. Using alpha = 0.05, is there a statistical difference in voting between the genders?
+prop.test(x = c(444, 350), n = c(600, 500)) # Note that this does not use the pooled value of p-hat, which is why the answers differ slightly
+pnorm(1.474, mean = 0, sd = 1, lower.tail = FALSE)*2 # finding the p-value based on the lecture calculation of the z-statistic
+
+# For houses with one or two garage spots only. Is the proportion of houses with air conditoning different for houses with one bedroom and houses with two garage spots?
+mydata.2 <- subset(mydata, mydata$garage.size < 3)
+mydata.3 <- subset(mydata.2, mydata.2$garage.size > 0)
+table(mydata.3$garage.size, mydata.3$air.conditionning)
+table(mydata.3$garage.size)
+prop.test(x = c(24, 300), n = c(52, 353))
+
+prop.test(table(mydata.3$garage.size, mydata.3$air.conditionning))
+
+
+###############################
+# CATEGORICAL DATA - 3+ LEVELS
+###############################
+
+# GOODNESS OF FIT TEST
+# For a goodness of fit test you could compare the counts (x) to the null distribution (expected proportions)
+
+y <- c(rep("1", 98), rep("2", 84), rep("3", 85), rep(4, 93), rep(5, 115), rep(6, 125))
+table(y)
+expected.y <- c(rep(1/6, 6)) # null distribution
+
+chisq.test(table(y), p = expected.y)
+
+residuals(chisq.test(table(y), p = expected.y)) # these residuals follow a z-distribution, so values larger than 1.96 or smaller than -1.96 indicate significant differences
+# residuals follows standard z- score.Therefore, the difference comes from x=6.
+
+x <- c(rep("A", 100), rep("B", 300), rep("C", 400))
+table(x)
+expected.x <- c(0.5, 0.375, 0.125)
+
+chisq.test(table(x), p = expected.x)
+
+residuals(chisq.test(table(x), p = expected.x))
+
+
+
+# TEST OF INDEPENDENCE / HOMOGENEITY
+
+mydata$construction.quality <- factor(mydata$construction.quality, labels=c("high", "medium", "low"))
+
+# Are the variables air.conditionning and construction quality independent?
+table(mydata$construction.quality, mydata$air.conditionning)
+# Note that one of our cells has a count of 0.
+
+chisq.test(table(mydata$construction.quality, mydata$air.conditionning))
+residuals(chisq.test(table(mydata$construction.quality, mydata$air.conditionning)))
+
+test.results <- chisq.test(table(mydata$construction.quality, mydata$air.conditionning))
+residuals(test.results)
+test.results$observed
+test.results$expected # this is useful because we need to check that expected cell frequencies are all at least 5
+
+
