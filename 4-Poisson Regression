@@ -1,0 +1,257 @@
+##############################
+
+# Poisson Regression Example
+
+##############################
+
+
+######################
+# IMPORT DATA
+######################
+
+mydata <- read.csv(file.choose(), header=TRUE)
+
+str(mydata)
+
+mydata$color <- as.factor(mydata$color)
+mydata$spine.condition <- as.factor(mydata$spine.condition)
+#transfer to factor
+#?????????????????? factor ??????
+str(mydata)
+summary(mydata)
+
+######################
+# DATA VISUALIZATION
+######################
+
+# response variable
+hist(mydata$satellite.males)
+hist(mydata$satellite.males, breaks=seq(0, 15, by=0.5))
+# Do you think the data follows a Poisson distribution?
+#˛ťˇţ´Ó
+# You could simulate data that follows a Poisson distribution to check.
+mean(mydata$satellite.males) # 2.919075
+nrow(mydata) # 173
+
+poisson.sim.data <- rpois(173, 2.919075)#???????????????????????????
+hist(poisson.sim.data, breaks=seq(0, 15, by=0.5))
+#˛úÉú˛´ËÉˇÖ˛źľÄËćťúĘý
+# For our data, is the mean equal to the variance?
+var(mydata$satellite.males)# ???var>mean?????????overdispersion
+
+# What are some potential causes of the patterns we are seeing in our data?
+
+
+# What is the potential relationship between carapace width and satellite males?
+plot(satellite.males ~ carapace.width, data=mydata, pch=16)
+plot(jitter(satellite.males,amount = 0.5) ~ carapace.width, data=mydata, pch=16)
+#????????????????????????amount shows how the data os ploted
+lines(lowess(mydata$carapace.width, mydata$satellite.males))
+
+# What problems would you have if you tried to analyze this data using MLR?
+#???????????????????????????because this data might have negative prediction
+
+# Plot the response variable against color (a categorical variable)
+
+barplot(table(mydata$color, mydata$pro), beside=TRUE, col=c("darkblue","red", "darkgreen", "orange"))
+#barplot means different data has different color.
+# What do you notice about the distribution of each color?
+#??????????????????????????????????????????????????????????????????
+
+# Plot the response variable against spine condition (a categorical variable)
+barplot(table(mydata$spine.condition, mydata$satellite.males), beside=TRUE)
+
+
+
+
+
+###############
+# MODELS
+###############
+
+# null model
+mean(mydata$satellite.males) #2.919075
+
+z.null <- glm(satellite.males ~ 1, data=mydata, family="poisson"(link="log"))
+summary(z.null)
+# intercept = 1.0713
+exp(1.0713) # 2.919172
+
+
+
+# create a model using caparpace width
+plot(satellite.males ~ carapace.width, data=mydata, pch=16)
+lines(lowess(mydata$carapace.width, mydata$satellite.males))
+
+
+
+# test the significance of the model
+anova(z.1, z.null, test="Chi")
+
+#??????goodness fit test ???df ???drop ??????varible ????????????
+
+############################
+# PLOTS TO SHOW MODEL FIT
+############################
+
+
+# PLOT WITH MODEL FIT
+
+xnew <- seq(min(mydata$carapace.width), max(mydata$carapace.width),length.out = 100)
+xnew
+ynew <- predict(z.1, data.frame(carapace.width = xnew), type="response")
+ynew
+
+plot(satellite.males ~ carapace.width, data=mydata, pch=16)
+lines(xnew, ynew, lty=1)
+
+
+
+############################
+
+# Try a model with color and carapace width
+# Note how many observations you have for each color
+table(mydata$color)
+# 1  2  3  4 
+# 12 95 44 22 
+
+# Very little data for the first color, Not a lot of data for the fourth color
+
+z.2 <- glm(satellite.males ~ carapace.width*color, data=mydata, family="poisson"(link="log"))
+summary(z.2)
+# Why should we need to include the interaction here?
+#??????carapace wirdth ???satellite.males ??????????????????????????????????????????????????????
+#because somtimes tthe # of males and carapace width will be influenced by color.
+anova(z.2, z.null, test="Chi")#because z.2 has 7 terms
+anova(z.2, z.1, test="Chi")
+#??????P?????????,???????????????,need interaction
+
+# do we need the interaction?
+z.3 <- glm(satellite.males ~ carapace.width + color, data=mydata, family="poisson"(link="log"))
+summary(z.3)
+anova(z.2, z.3, test="Chi")
+
+
+###################
+# PLOT THE MODEL
+###################
+
+#Need to create new data for each color
+xnew <- seq(min(mydata$carapace.width), max(mydata$carapace.width), length.out = 100)
+xnew
+
+xnew.df <- as.data.frame(xnew)
+xnew.df
+
+xnew.df.4 <- rbind(xnew.df, xnew.df, xnew.df, xnew.df)
+xnew.df.4
+
+colors <- c(rep(1, 100), rep(2, 100), rep(3, 100), rep(4, 100))
+colors
+
+is.vector(colors) #TRUE
+colors <- as.data.frame(colors)
+
+
+new.data <- cbind(xnew.df.4, colors)
+new.data
+
+names(new.data) <- c("carapace.width", "color")
+
+str(new.data)
+new.data$color <- as.factor(new.data$color)
+
+
+ynew <- predict(z.2, data.frame(new.data), type="response")
+ynew
+
+new.data.2 <- cbind(new.data, ynew)
+new.data.2 
+
+
+
+# Subset the new data into the different colors
+mydata.prog.1 <- subset(mydata, mydata$prog == "1")
+mydata.col.2 <- subset(new.data.2, new.data.2$color == "2")
+mydata.col.3 <- subset(new.data.2, new.data.2$color == "3")
+mydata.col.4 <- subset(new.data.2, new.data.2$color == "4")
+
+
+# Plot the data and model fit with color coding
+plot(satellite.males ~ carapace.width, data=mydata, pch=16, col = c("red", "blue", "green", "orange")[as.factor(mydata$color)])
+lines(mydata.col.1$carapace.width, mydata.col.1$ynew, lty=1, col="red")
+lines(mydata.col.2$carapace.width, mydata.col.2$ynew, lty=1, col="blue")
+lines(mydata.col.3$carapace.width, mydata.col.3$ynew, lty=1, col="green")
+lines(mydata.col.4$carapace.width, mydata.col.4$ynew, lty=1, col="orange")
+
+
+# Recall how many observations you have for each level for color
+
+# Relate the qualitative observations from your graph with the co-efficients from the model
+summary(z.2)
+
+
+ 
+############################
+# Does the model have overdispersion?
+z.2 <- glm(satellite.males ~ carapace.width*color, data=mydata, family="poisson"(link="log"))
+summary(z.2)
+
+# How would we deal with this?
+#??????deviance/df>1.5???????????????dispersion????????????
+
+
+
+############################
+# Does the response variable follow a Poisson distribution?
+hist(mydata$satellite.males)
+hist(mydata$satellite.males, breaks=seq(0, 15, by = 0.5)) # zero-inflated
+
+table(mydata$satellite.males)
+# maybe group 11-15 because the observed values are quite small
+#0????????????????????????
+
+nrow(mydata) #173
+mean(mydata$satellite.males) #2.919075
+
+# This is a Chi-Square goodness of fit test, to see if our data fits the frequencies we would expect if it follows a Poisson distribution
+#don't want any expected frequencies less than 5, so will group 7-15
+expected.freq <- vector("numeric")
+
+for (i in 1:8) {
+      expected.freq [i] <- exp(-2.919075)*2.919075^(i-1)/factorial(i-1)*173 }
+
+expected.freq
+173-sum(expected.freq) # 1.773008
+expected.freq
+#expected value for 0,1,2,???????????????
+frequency.table <- as.data.frame(table(mydata$satellite.males))
+frequency.table
+
+sum(frequency.table$Freq[7:15]) #33
+
+frequency.table$Freq [8] <- c(33)
+# sum up all the numbers in for variance=7-15,the set this value to 8 in order to minimize the error.
+#?????????7???????????????7 ??????,?????????
+frequency.table$Var1 <- as.numeric(as.character(frequency.table$Var1))
+frequency.table.new <- subset(frequency.table, frequency.table$Var1 < 8)
+frequency.table.new
+
+
+
+# H0: response variable follows a Poisson distribution
+# H1: response variable does not follow a Poisson distribution
+
+freq.table <- cbind(frequency.table.new, expected.freq)
+# ??Ąě2 = ???? [ (Oi - Ei)2 / Ei ]
+freq.table
+chi.squared.statistic <- sum((freq.table$Freq - freq.table$expected.freq)^2/freq.table$expected.freq)
+chi.squared.statistic
+
+dchisq(604.4662, df=8, log=FALSE)
+qchisq(.95, df=8) # df = number of groups; to get critical value
+
+
+############################
+
+
