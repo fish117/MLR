@@ -1,0 +1,156 @@
+library(fpp)
+mydata<-read.csv(file.choose(),header=TRUE)
+str(mydata)
+#select the data
+mydata1<-subset(mydata, mydata$ER.visits <=11)
+nrow(mydata1)
+# categorical varibles
+mydata1$drugs<-as.factor(mydata1$drugs)
+str(mydata1)
+levels(mydata1$drugs)<-c("0","1","2","2","2","2","2","2")
+table(mydata1$drugs)
+#2
+mean(mydata1$ER.visits)#3.305128
+var(mydata1$ER.visits)#5.542207
+max(mydata1$ER.visits)
+hist(mydata1$ER.visits, breaks=seq(0, 11, by=0.5))
+
+
+nrow(mydata1) # 780
+
+poisson.sim.data <- rpois(780,3.305128)
+hist(poisson.sim.data, breaks=seq(0,11, by=0.5))
+
+5.542207/3.305128
+#3
+mydata<-mydata1
+
+# This is a Chi-Square goodness of fit test, to see if our data fits the frequencies we would expect if it follows a Poisson distribution
+#don't want any expected frequencies less than 5, so will group 7-15
+expected.freq <- vector("numeric")
+
+for (i in 1:9) {
+  expected.freq [i] <- exp(-3.305128)*3.305128^(i-1)/factorial(i-1)*780 }
+
+expected.freq
+780-sum(expected.freq) # 5.442861
+expected.freq
+#expected value for 0,1,2,???????????????
+frequency.table <- as.data.frame(table(mydata$ER.visits))
+frequency.table
+
+sum(frequency.table$Freq[9:12]) #51
+
+frequency.table$Freq [9] <- c(51)
+# sum up all the numbers in for variance=7-15,the set this value to 8 in order to minimize the error.
+#?????????7???????????????7 ??????,?????????
+frequency.table$Var1 <- as.numeric(as.character(frequency.table$Var1))
+frequency.table.new <- subset(frequency.table, frequency.table$Var1 < 9)
+frequency.table.new
+
+
+
+# H0: response variable follows a Poisson distribution
+# H1: response variable does not follow a Poisson distribution
+
+freq.table <- cbind(frequency.table.new, expected.freq)
+# ??Ąě2 = ???? [ (Oi - Ei)2 / Ei ]
+
+chi.squared.statistic <- sum((freq.table$Freq - freq.table$expected.freq)^2/freq.table$expected.freq)
+chi.squared.statistic
+
+dchisq(222.7671, df=9, log=FALSE)
+qchisq(.95, df=9) # df = number of groups; to get critical value
+
+
+############################
+
+#4
+plot(ER.visits ~ age, data=mydata, pch=16)
+lines(lowess( mydata$age,mydata$ER.visits),lty=2,col=2)
+
+#5
+mydata.f<- subset(mydata, mydata$gender == "female")
+mydata.m<- subset(mydata, mydata$gender == "male")
+# Plot the data and model fit with color coding
+plot(ER.visits ~ age, data=mydata, pch=16, col = c("red", "blue" )[as.factor(mydata$gender)])
+lines(lowess(mydata.f$age,mydata.f$ER.visits ), lty=1, col="red")
+lines(lowess( mydata.m$age,mydata.m$ER.visits), lty=1, col="blue")
+legend("topleft", c("female", "male"), lty = 1, col =  c("red", "blue"))
+
+#6
+mydata.drug1<- subset(mydata, mydata$drugs == "1")
+mydata.drug0<- subset(mydata, mydata$drugs == "0")
+mydata.drug2<- subset(mydata, mydata$drugs== "2")
+# Plot the data and model fit with color coding
+plot(ER.visits ~ age, data=mydata, pch=16, col = c("red", "blue" ,"green")[as.factor(mydata$drugs)])
+lines(lowess( mydata.drug0$age,mydata.drug0$ER.visits), lty=1, col="red")
+lines(lowess(mydata.drug1$age,mydata.drug1$ER.visits), lty=1, col="blue")
+lines(lowess( mydata.drug2$age,mydata.drug2$ER.visits), lty=1, col="green")
+legend("topleft", c("drug0", "drug1", "drug2"), lty = 1, col =  c("red", "blue" ,"green"))
+
+
+#9
+z1 <- glm(ER.visits ~ age*gender+age*drugs, data=mydata, family="poisson"(link="log"))
+summary(z1)
+
+z.null<-glm(ER.visits ~ 1, data=mydata, family="poisson"(link="log"))
+summary(z.null)
+anova(z1,z.null)
+
+logLik(z1) 
+logLik(z.null)
+
+-2*(logLik(z.null) - logLik(z1))
+qchisq(0.95, 7)
+pchisq(256.5937 , 7, lower.tail=FALSE)
+
+#10
+drop1(z1,test="Chi")
+z1.drop.age<- glm(ER.visits ~ gender+drugs, data=mydata, family="poisson"(link="log"))
+anova(z1,z1.drop.age,test="Chi")
+
+logLik(z1) 
+logLik(z1.drop.age)
+
+-2*(logLik(z1.drop.age) - logLik(z1))
+qchisq(0.95, 4)
+pchisq(5.304294 , 4, lower.tail=FALSE)
+
+z1.drop.gender<- glm(ER.visits ~ age*drugs, data=mydata, family="poisson"(link="log"))
+anova(z1,z1.drop.gender,test="Chi")
+
+logLik(z1) 
+logLik(z1.drop.gender)
+
+-2*(logLik(z1.drop.gender) - logLik(z1))
+qchisq(0.95, 2)
+pchisq(14.08577, 2, lower.tail=FALSE)
+
+z1.drop.drug<- glm(ER.visits ~ age*gender, data=mydata, family="poisson"(link="log"))
+anova(z1,z1.drop.drug,test="Chi")
+
+logLik(z1) 
+logLik(z1.drop.drug)
+
+-2*(logLik(z1.drop.drug) - logLik(z1))
+qchisq(0.95, 4)
+pchisq(232.4248, 4, lower.tail=FALSE)
+AIC(z1)
+AIC(z1.drop.age)
+AIC(z1.drop.gender)
+AIC(z1.drop.drug)
+#11
+z2<-glm(ER.visits ~ gender+drugs, data=mydata, family="poisson"(link="log"))
+
+
+
+#13
+z.final<-z2
+summary(z.final)
+1054.8/776
+
+
+#14
+
+-2*(-1613.909)+2*(10+3)
