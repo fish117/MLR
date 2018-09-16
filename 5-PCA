@@ -1,0 +1,135 @@
+####################################################
+
+# Week 05 - Principal Component Analysis
+####################################################
+
+library(forecast) # We aren't actually doing forecasting, just using a package you already have for transformations
+library(rgl)
+
+mydata <- iris
+
+str(mydata)
+
+######################################
+# DATA VISUALIZATION AND PREPARATION
+######################################
+
+# Are there correlations between the variables?
+cor(as.matrix(mydata[,-5])) #excluding the last variable, which is Species (categorical)
+
+pairs(~Sepal.Length + Sepal.Width + Petal.Length + Petal.Width, data = mydata)
+# no response varibles, assume one response varible in every row.
+# If there are no correlations, then it doesn't make sense to use PCA.
+
+plot3d(mydata[,1:3], size=10, col=as.numeric(as.factor(mydata$Species)))
+
+
+plot3d(mydata$Sepal.Length, mydata$Petal.Length, mydata$Petal.Width, size=10, col=as.numeric(as.factor(mydata$Species)))
+
+
+# HISTOGRAMS
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+hist(mydata$Sepal.Length)
+hist(mydata$Sepal.Width)
+hist(mydata$Petal.Length)
+hist(mydata$Petal.Width)
+
+dev.off()
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+hist(scale(mydata$Sepal.Length))
+hist(scale(mydata$Sepal.Width))
+hist(scale(mydata$Petal.Length))
+hist(scale(mydata$Petal.Width))
+
+dev.off()
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+hist(BoxCox(mydata$Sepal.Length, BoxCox.lambda(mydata$Sepal.Length)))
+hist(BoxCox(mydata$Sepal.Width, BoxCox.lambda(mydata$Sepal.Width)))
+hist(BoxCox(mydata$Petal.Length, BoxCox.lambda(mydata$Petal.Length)))
+hist(BoxCox(mydata$Petal.Width, BoxCox.lambda(mydata$Petal.Width)))
+
+dev.off()
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+hist(scale(BoxCox(mydata$Sepal.Length, BoxCox.lambda(mydata$Sepal.Length))))
+hist(scale(BoxCox(mydata$Sepal.Width, BoxCox.lambda(mydata$Sepal.Width))))
+hist(scale(BoxCox(mydata$Petal.Length, BoxCox.lambda(mydata$Petal.Length))))
+hist(scale(BoxCox(mydata$Petal.Width, BoxCox.lambda(mydata$Petal.Width))))
+
+
+dev.off()
+
+################################
+# PRINCIPAL COMPONENT ANALYSIS
+################################
+# Make sure that you only use numerical variables for PCA
+mydata[,-5] # this will remove the last column about species,only use numerical varibles
+
+pca <- princomp(mydata[,-5], cor=TRUE) # this will use correlation, which will automatically do the scaling for you
+
+summary(pca)
+# Note that R give standard deviations, not variances
+# You can calculate the variances
+(pca$sdev)^2
+
+(pca$sdev)^2/sum((pca$sdev)^2) # This gives the variances expresses as a percentage of the total
+plot(pca) # This is a Scree plot, which shows the amount of variance explained graphically,so comp1 is the most important
+screeplot(pca, type="lines")# the benifit of including each component
+
+plot(cumsum((pca$sdev)^2/sum((pca$sdev)^2)), xlab = "Principal Component", ylab = "Cumulative Proportion of Variance Explained", type = "b") # Cumulative Scree plot
+# Two PCs correspond to over 95% of the total variance
+
+pca$center
+pca$scale
+
+mean(mydata$Sepal.Length)
+sd(mydata$Sepal.Length) 
+
+
+# What do the loadings tell us? The loadings tell us how much each variable contributed to the PC
+# Note: The signs of the columns of the loadings and scores are arbitrary, and so may differ between different programs for PCA, and even between different builds of R.
+# Note that R does not show |loadings| < 0.1
+summary(pca, loadings=TRUE)
+
+biplot(pca, scale = 0) # This shows the original variables with the length of each arrow representing the loading for PC1 and PC2
+# PC1 is mainly composed of sepal length, petal length and petal width
+
+
+# PC1 = 0.521*z.Sepal.Length -0.269*z.Sepal.Width + 0.580*z.Petal.Length + 0.565*z.Petal.Width
+# use the z score of each one.
+
+scaled.data <- as.data.frame(cbind(scale(mydata$Sepal.Length), scale(mydata$Sepal.Width), scale(mydata$Petal.Length), scale(mydata$Petal.Width)))
+scaled.data[1,]
+
+# We could calculate the PC1 score for the first observation in the dataset:
+# PC1 = 0.521*(-0.89767388) -0.269*1.015602 + 0.580*(-1.335752) + 0.565*(-1.311052)
+0.521*(-0.89767388) -0.269*1.015602 + 0.580*(-1.335752) + 0.565*(-1.311052) # -2.256366
+
+# Absolute values of the loadings tell us which variables have the largest impact on the PC's. So you may be able to select which variables to include based on their contribution to the PC's
+
+# How to extract PC1 and PC2 to graph?
+pca$scores
+
+plot(pca$scores[,1:2], pch=16)
+
+pca.kmeans <- kmeans(pca$scores[,1:3], centers=3, iter.max=100) # Here we are searching for clusters based on PC1, PC2 and PC3 scores
+#use PC 1,2,3, to find the clusters
+plot(pca$scores[,1:2], pch=16, col=as.factor(pca.kmeans$cluster))
+
+plot(pca$scores[,1:2], pch=16, col=c("red", "black", "green3")[as.numeric(mydata$Species)])
+# have overlap because it's reality
+
+
+
+plot3d(pca$scores[,1:3], size=10, col=c("red", "black", "green3")[as.numeric(mydata$Species)])
+
+
+###########################################
+# You can also use a differenr R function
+pca2 <- prcomp(mydata[,-5], scale. = T)
+names(pca2)
+# "sdev"     "rotation" "center"   "scale"    "x"; this uses the term rotation instead of loadings and x instead of PC scores
+
