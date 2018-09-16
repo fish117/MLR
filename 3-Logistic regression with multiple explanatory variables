@@ -1,8 +1,7 @@
 ##################################
 # LOGISTIC REGRESSION EXAMPLE
 # Logistic regression with multiple explanatory variables
-# Instructor: Martha Essak
-# Jan. 14, 2018
+
 ##################################
 
 mydata <- read.csv(file.choose(), header=TRUE)
