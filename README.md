@@ -1,2 +1,254 @@
-# MLR
+# MLR------------R
 This is the code of statistics: multiple liner regression
+######################################################
+# BABS 508 - Advanced predictive business analytics 
+# Instructor: Martha Essak
+# MLR with categorical variables example
+######################################################
+
+
+mydata <- read.csv(file.choose(), header=TRUE)
+
+str(mydata) # Note that some variables are read by R as quantitative (integer or numeric), and some are read by R as categorical (factor). If R reads a variable incorrectly (like say you encoded a categorical variable with 1, 2, 3), then you need to change this before you start your analysis.
+
+#########
+# PLOTS
+#########
+
+# Scatterplot of time vs distance
+plot(time ~ distance, data=mydata, pch=16)
+# This plot show the relationship between the response variable and the quantitative explanatory variable.
+
+# Boxplot of time vs. hand
+hand.means <- tapply(mydata$time, mydata$hand, FUN="mean")
+plot(time ~ hand, data=mydata)
+points(hand.means, pch=16)
+# This plot show the relationship between the response variable and the categorical variable.
+
+
+# separate the categories into separate datasets, this will allow you to plot the data separately and draw a regression line using a subset of the data
+mydata.left <- subset(mydata, mydata$hand == "left")
+mydata.right <- subset(mydata, mydata$hand == "right")
+
+par(mfrow=c(1,2))
+
+# Scatterplot of time vs distance for left hand only
+plot(time ~ distance, data=mydata.left, pch=1, ylim=c(0, 400))
+
+# Scatterplot of time vs distance for left hand only
+plot(time ~ distance, data=mydata.right, pch=16, ylim=c(0, 400))
+
+# Note that I selected the same limits for y so that it is easier to compare these graphs visually.
+
+dev.off() # This will reset your par() defaults. If you don't use this line of code, the rest of your graphs will be appearing side by side!
+
+
+
+# Scatterplot of time vs. distance with different categories as different plotting characters
+plot(time ~ distance, data=mydata, pch=c(1, 16)[as.numeric(mydata$hand)]) # this assigns plotting characters to the factor "hand", and will do so in alphabetical order; left will get pch=1, right will get pch=16
+abline(lm(time ~ distance, data=mydata.left), lty=2) # this gives the regression line for the left hand only, and makes the line dashed
+abline(lm(time ~ distance, data=mydata.right)) #this gives the regression line for the right hand only, and leaves it as a solid line
+
+# Why don't we use two separate SLR models?
+
+
+#############
+# FULL MODEL
+#############
+options(contrasts=rep("contr.treatment", 2)) # Although the default should be set to this; I have included this line of code because if, for some reason, you end up using different contrasts, the coding of your dummy variables will be harder to interpret.
+
+# options(contrasts=rep("contr.SAS", 2)) # If you use this instead, then the last category level (alphabetically) will be coded as 0, and the adjustments are in reference to that category level.
+
+z.full <- lm(time ~ distance + hand + distance*hand, data=mydata)
+# z.full <- lm(time ~ distance*hand, data=mydata) # This will also work
+summary(z.full)
+
+# In the R output,  it says "handright", this means that left hand must be represented by the intercept and the slope related to distance. Then for the right hand, adjustments have to be made to the intercept and the slope. By default, R encodes the first category level as 0, and then other category levels are given in reference to this one. How does R pick the "first category level"? Alphabetically.
+# Since "left" comes before "right" in alphabetical order, R has designated left as the category level that others will be in reference to.
+
+# Let's try to understand the values in the output
+# The intercept and the slope are the values for the left hand:
+# Left hand: time = 171.5483 + 0.2619 * distance + error
+
+# To get the values for the right hand, we make adjustments to the values for the left hand.
+# Right hand: time = (   171.5483 -72.1841) + (0.2619 -0.2336)* distance + error
+# Right hand: time = 99.3642 + 0.0283* distance + error
+
+# Let's try to relate this to the plot:
+plot(time ~ distance, data=mydata, pch=c(1, 16)[as.numeric(mydata$hand)])
+abline(171.5483, 0.2619, lty=2) # left hand, ĐąÂĘÓë˝ŘžŕĄŁ
+abline(99.3642, 0.0283, lty=1) # right handŁŹĐÂľÄĐąÂĘÓë˝ŘžŕĄŁ
+
+
+# Let's check the assumptions
+
+predict.full <- predict(z.full)
+resid.full <- resid(z.full)
+
+# Residual plot - use to check for violations to assumptions of linearity and equal variance
+plot(resid.full ~ predict.full, pch=16)
+abline(0,0, lty=2)
+
+# Check assumption of normality
+hist(resid.full)
+
+# Normality plot
+qqnorm(resid.full, ylab= "standardized residuals", xlab = "Normal scores")
+qqline(resid.full)
+
+shapiro.test(resid.full) #Shapiro-Wilk test
+
+# If the assumptions are met, then you could test the significance of the regression. If we reject the null hypothesis, then we know that at least one co-efficient is not equal to zero.
+summary(z.full)
+
+# What happens if we try to test the variables?
+drop1(z.full, test="F") # What is this testing?
+
+
+
+
+###########################
+# NO CATEGORICAL VARIABLE
+# CONTINUOUS VARIABLE ONLY
+###########################
+
+z.distance.only <- lm(time ~ distance, data=mydata) # when you remove the categorical variable, you remove the interactions and the main effect
+
+anova(z.full, z.distance.only)
+# If you fail to reject the null hypothesis, then we don't need the categorical variable.
+
+# Full model: z.full
+# Reduced model: z.distance.only
+
+predict.full <- predict(z.full)
+resid.full <- resid(z.full)
+
+predict.reduced <- predict(z.distance.only)
+resid.reduced <- resid(z.distance.only)
+
+SSE.full <- sum(( mydata$time - predict.full)^2)
+SSE.full
+
+SSE.reduced <- sum(( mydata$time - predict.reduced)^2)
+SSE.reduced
+
+SSE.reduced - SSE.full
+
+
+SSreg.full <- sum((predict.full - mean( mydata$s))^2)
+SSreg.full
+
+SSreg.reduced <- sum((predict.reduced - mean( mydata$time))^2)
+SSreg.reduced
+
+SSreg.full - SSreg.reduced
+
+# Calculating the F Statistic
+((SSreg.full - SSreg.reduced)/2)/(SSE.full/(nrow(mydata)-3-1))
+
+# Calculating the F critical; remember that this will vary depending on your alpha value
+nrow(mydata)-3-1 #36  df of error
+qf(0.95, 2, 36)
+qf(0.90, 2, 36)
+
+# Calculating the p-value
+pf(25.50639, 2, 36, lower.tail=FALSE)
+
+
+
+summary(z.distance.only)
+
+# If this is your final model, the slope and intercept are the same for both , so you do not need the categorical variable
+
+###########################
+# NO CONTINUOUS VARIABLE
+# CATEGORIAL VARIABLE ONLY
+###########################
+
+z.hand.only <- lm(time ~ hand, data=mydata) # when you remove the continuous variable, you remove the interactions and the main effect
+
+anova(z.full, z.hand.only)
+
+# Practice writing the code to do the partial F-test yourself:
+                        
+
+
+
+
+
+
+
+summary(z.hand.only)
+
+
+# If the continuous variable is not contributing significantly to the model, then the model with only the categorical variable will be your final model.
+# Since there are only two levels for the categorical variable, if only this variable is significant, then you know that there are difference between those two levels
+# If, however, there are more than two levels, when you find that the categorical variable is significant, you will need to test which levels are different from each other
+# You can do this using pairwise t-tests
+
+
+
+
+####################
+# SAME SLOPES MODEL
+####################
+
+z.same.slope <- lm(time ~ distance + hand, data=mydata) # this model does not include the interaction (which changes the slope for each category level), but will include options for different intercepts
+
+summary(z.same.slope)
+
+anova(z.full, z.same.slope) 
+
+summary(z.same.slope)
+
+drop1(z.same.slope, test="F")
+
+
+
+####################
+# SAME INTERCEPT MODEL
+####################
+
+
+z.same.intercept <- lm(time ~ distance*hand - hand, data=mydata) # you need to suppress the main effect of hand to make the intercepts the same
+
+anova(z.full, z.same.intercept)
+
+summary(z.same.intercept)
+
+
+#####################
+# FINAL MODEL
+#####################
+
+# What is the final model? Make sure you have checked the assumptions for this model.
+
+
+
+
+
+#####################
+# TRANSFORMATIONS
+#####################
+# When we checked the assumptions of the full model, we noticed some problems. Let's try to fix those.
+# Checking the assumptions tells us that we might want to try a transformation to get the variance more equal and the assumption of normality met
+
+mydata$time.log <- log(mydata$time)
+mydata$time.sqrt <- sqrt(mydata$time)
+mydata$time.recip <- 1/(mydata$time)
+
+plot(time.log ~ distance, data=mydata, pch=c(1, 16)[as.numeric(mydata$hand)])
+plot(time.sqrt ~ distance, data=mydata, pch=c(1, 16)[as.numeric(mydata$hand)])
+plot(time.recip ~ distance, data=mydata, pch=c(1, 16)[as.numeric(mydata$hand)])
+# no transformation work
+
+# Let's try the full model with the reciprocal of time
+# Continue through the process of testing variables using alpha = 0.10
+
+z.A <- lm(time.recip ~ distance + hand + distance*hand, data=mydata)
+summary(z.A)
+
+
+
+
+
