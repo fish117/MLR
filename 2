@@ -1,0 +1,300 @@
+##################################
+# LOGISTIC REGRESSION EXAMPLE
+##################################
+
+
+
+#####################
+# IMPORT THE DATASET
+#####################
+
+# read in the csv file
+mydata <- read.csv(file.choose(), header=TRUE)
+
+str(mydata)
+
+# keep purchase as an integer
+
+#####################
+# DATA EXPLORATION
+#####################
+# How many "yes" to purchase out of the total?
+table(mydata$purchase) # 10 "yes", where the variable is = 1
+
+table(mydata$purchase)/nrow(mydata) # 0.5 = proportion of "yes" people have purchased this item
+
+
+#################
+# PLOT THE DATA
+#################
+
+plot(purchase ~ age, data=mydata, pch=16)
+
+# What pattern do you see?
+
+
+# Lowess curve
+plot(purchase ~ age, data=mydata, pch=16)
+lines(lowess(mydata$age, mydata$purchase))# it's just ?????????????????????,????????????
+
+# What shape do you expect the model to take?
+
+
+
+###############################
+# INTERPRETING CO-EFFICIENTS
+###############################
+# Fit the model
+z1 <- glm(purchase ~ age, data=mydata, family="binomial"(link="logit")) 
+
+summary(z1)
+
+# Coefficients:
+#             Estimate Std. Error z value Pr(>|z|)  
+# (Intercept) -31.0601    14.4392  -2.151   0.0315 *
+# age           1.0077     0.4693   2.147   0.0318 *
+
+# The intercept (in log odds) is -31.0601.
+# An increase in 1 year of age corresponds to an increase of 1.0077 in the log odds.
+
+exp(1.0077) # 2.739293
+ # An increase in 1 year of age corresponds to an increase by 173.9% with each additional year of age
+
+exp(1.0077)/(1 + exp(1.0077))
+
+# Residual deviance: 19.059  on 18  degrees of freedom; what does the value of residual deviance indicate?
+
+confint(z1) # uses log-likelihood
+
+
+#####################################
+# NULL MODEL / INTERCEPT ONLY MODEL
+#####################################
+
+z.null <- glm(purchase ~ 1, data=mydata, family="binomial"(link="logit"))#intercept only model
+summary(z.null)
+
+
+# The intercept is -9.930e-17 in log odds (the estimate of the mean on the logit scale).
+
+# What is the estimate of the population proportion?
+# You need to use the inverse equation to obtain this
+
+exp(-9.930e-17)/(1 + exp(-9.930e-17))#the probability of purchasing and didn't purchase=0.5
+
+# This might be a natural cut-off point, where any predicted values below the population mean would get a predicted value of 0, and any above would get a predicted value of 1
+
+
+mean(fitted(z1))
+# Note that your model has the same mean for predicted values
+
+
+#################################
+# LIKELIHOOD RATIO TEST
+#################################
+
+# You can compare the null model and your model using a likelihood ratio test
+anova(z.null, z1, test="Chi")# DF ĘÇdf for residual
+
+# Log likelihood, larger is better
+logLik(z1) 
+logLik(z.null)
+
+
+-2*(logLik(z.null) - logLik(z1))
+
+# How to find chi-squared critical value:
+qchisq(0.95, 1)
+
+# How to find the p-value:
+pchisq(8.666812, 1, lower.tail=FALSE)
+
+
+#################################
+# MEASURES OF GOODNESS OF FIT
+#################################
+
+# Log likelihood, larger is better
+logLik(z1) 
+logLik(z.null)
+
+
+library(AICcmodavg)
+# AIC, smaller is better
+AIC(z1)     # takes into account number of variables
+
+# Let's calculate it ourselves:
+-2*logLik(z1)+2*(1+1)
+
+AICc(z1)    # takes into account number of variables and sample size. More conservative   ?????????
+
+
+# Pseudo R2
+1 - (logLik(z.null)/logLik(z1))^(2/nrow(mydata))
+
+#Scaled R2
+(1 - (logLik(z.null)/logLik(z1))^(2/nrow(mydata)))/(1-logLik(z.null)^(2/nrow(mydata))) #ľĂ˛ťľ˝˝ášűŁŹŇňÎŞŇŞÖą˝ÓĐ´ČëlogLik(z.nullľÄÖľ
+(1 - (logLik(z.null)/logLik(z1))^(2/nrow(mydata)))/(1 - (-13.86294^(2/nrow(mydata))))
+
+#####################################
+# ADD THE MODEL FIT TO THE GRAPH
+#####################################
+
+# Notes:
+predict(z1) # will give predicted values on the logit scale
+
+fitted(z1) # will give predicted values on the original scale (as predicted probabilities)
+predict(z1, type="response") # will also give predicted values on the original scale 
+
+# Create new data so that you can plot using it
+xnew <- seq(min(mydata$age), max(mydata$age), length.out = 100)
+xnew
+ynew <- predict(z1, data.frame(age = xnew), type="response")
+ynew
+
+# PLOT WITH MODEL FIT AND PREDICTED VALUES
+plot(purchase ~ age, data=mydata, pch=16)
+lines(xnew, ynew, lty=1)
+points(mydata$age, predict(z1, type="response"))#źÓÉĎÔ¤˛âÖľ
+
+# Add predicted values to a column in a new dataset (so that you are not altering your original dataset)
+predict1 <- predict(z1, type="response")
+mydata.2 <- cbind(mydata, predict1)
+mydata.2
+
+# Subset the data into purchase and no purchase 
+mydata.2.purchase <- subset(mydata.2, mydata.2$purchase == 1)
+mydata.2.no.purchase <- subset(mydata.2, mydata.2$purchase == 0)
+
+
+# Plot the data and model fit with color coding
+plot(purchase ~ age, data=mydata, pch=1, col = c("red", "blue")[as.factor(mydata$purchase)])
+lines(xnew, ynew, lty=1)
+points(mydata.2.purchase$age, mydata.2.purchase$predict1, col="blue", pch=16)
+points(mydata.2.no.purchase$age, mydata.2.no.purchase$predict1, col="red", pch=16)
+abline(0.5, 0, lty=2) # This is the line for the mean of the population, where we might want to put our cut-off
+
+
+# Compare the results in this table to the results that we can see on the graph
+table(mydata$purchase, fitted(z1) > 0.5)
+#     FALSE TRUE
+# 0     8    2
+# 1     2    8
+
+
+# Let's try some other cut-off points to see what happens to our results
+
+# cut-off at 0.2
+plot(purchase ~ age, data=mydata, pch=1, col = c("red", "blue")[as.factor(mydata$purchase)])
+lines(xnew, ynew, lty=1)
+points(mydata.2.purchase$age, mydata.2.purchase$predict1, col="blue", pch=16)
+points(mydata.2.no.purchase$age, mydata.2.no.purchase$predict1, col="red", pch=16)
+abline(0.2, 0, lty=2)
+
+
+table(mydata$purchase, fitted(z1) > 0.2)
+
+
+# cut-off at 0.6
+plot(purchase ~ age, data=mydata, pch=1, col = c("red", "blue")[as.factor(mydata$purchase)])
+lines(xnew, ynew, lty=1)
+points(mydata.2.purchase$age, mydata.2.purchase$predict1, col="blue", pch=16)
+points(mydata.2.no.purchase$age, mydata.2.no.purchase$predict1, col="red", pch=16)
+abline(0.6, 0, lty=2)
+
+table(mydata$purchase, fitted(z1) > 0.6)
+
+
+
+
+###################################
+# CREATE A CLASSIFICATION TABLE
+###################################
+
+# This will try out many different cut-off points to give you an idea of how to maximize or minimize different values.
+# For example, you might want to maximize percentage of correct predictions.
+# For example, you might want to minimize false negatives.
+
+# Create an empty dataframe that you will fill with 
+df <- data.frame(matrix(ncol = 9, nrow = 51))#ÓĂžŘŐóÔěŇť¸öĘýžÝżňŁŹ51żÉŇÔ°üŔ¨0şÍ1,
+colnames(df) <- c("correct.event", "correct.non.event", "incorrect.event", "incorrect.non.event", "correct.percent", "sensitivity", "specificity", "false.pos", "false.neg")
+df
+
+
+prob.level <- seq(0, 1, length.out=51) # create a vector with different possible probabilities
+prob.level#51?????????0???1
+class.table.data <- cbind(prob.level, df) # combine your vector of probabilities and your empty dataframe
+class.table.data # Your dataframe has one row for each probability cut-off
+
+# fill empty cells in your dataframe with 0
+class.table.data$correct.non.event <- rep(c(0), c(51))
+class.table.data$correct.event <- rep(c(0), c(51))
+class.table.data$incorrect.non.event <- rep(c(0), c(51))
+class.table.data$incorrect.event <- rep(c(0), c(51))
+class.table.data
+
+
+
+# This loop will try out the different probability cut-off values and fill in how many correct and incorrect events and non-events you have based on your data.
+for (i in 1:51) {
+class.table <- table(mydata$purchase, fitted(z1) > class.table.data$prob.level[i])
+
+col.true.num <- grep("TRUE", colnames(class.table))
+col.false.num <- grep("FALSE", colnames(class.table))
+
+if (length(col.true.num) > 0) {
+      class.table.data$incorrect.non.event [i] <- class.table[1, col.true.num]
+      class.table.data$correct.event [i] <- class.table[2, col.true.num] }
+
+if (length(col.false.num) > 0) {
+      class.table.data$correct.non.event [i] <- class.table[1, col.false.num]
+      class.table.data$incorrect.event [i] <- class.table[2, col.false.num] }  }
+
+class.table.data
+
+# You will use this information to fill in the rest of your classification table.
+class.table.data$correct.percent <- (class.table.data$correct.event + class.table.data$correct.non.event)/nrow(mydata)
+class.table.data$sensitivity <- (class.table.data$correct.event)/nrow(mydata)
+class.table.data$specificity <- (class.table.data$correct.non.event)/nrow(mydata)
+class.table.data$false.neg <- (class.table.data$incorrect.non.event)/nrow(mydata)
+class.table.data$false.pos <- (class.table.data$incorrect.event)/nrow(mydata)
+class.table.data
+#???Announcement
+
+####################
+# CONFIDENCE BANDS
+####################
+
+
+xnew <- seq(min(mydata$age), max(mydata$age), length.out = 100)
+xnew
+ynew <- predict(z1, data.frame(age = xnew), type="response")
+ynew
+
+#zhat <- predict(z1, se.fit=TRUE)# standerd error of fit is Ture.???????????????predict interval
+zhat <- predict(z1, data.frame(age = xnew), se.fit=TRUE)  # result on logit or log scale
+zupper <- zhat$fit + 1.96 * zhat$se.fit#prediction +_ (critical value)*standerd error,?????????1.96,95%
+zlower <- zhat$fit - 1.96 * zhat$se.fit#???????????????z-dist,?????????t-dist
+
+yupper <- exp(zupper)/(1 + exp(zupper)) # for logit link, backtransform to units of response variable
+ylower <- exp(zlower)/(1 + exp(zlower))
+
+
+plot(purchase ~ age, data=mydata, pch=1, col = c("red", "blue")[as.factor(mydata$purchase)])
+lines(xnew, ynew, lty=1)#?????????????????????????????????????????????
+points(mydata.2.purchase$age, mydata.2.purchase$predict1, col="blue", pch=16)
+points(mydata.2.no.purchase$age, mydata.2.no.purchase$predict1, col="red", pch=16)
+lines(xnew, yupper, lty=2)
+lines(xnew, ylower, lty=2)
+
+
+
+
+
+
+
+
+
+
+
+
