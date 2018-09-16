@@ -1,8 +1,7 @@
 # MLR------------R
+I：categorical variable example
 This is the code of statistics: multiple liner regression
 ######################################################
-# BABS 508 - Advanced predictive business analytics 
-# Instructor: Martha Essak
 # MLR with categorical variables example
 ######################################################
 
